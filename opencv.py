@@ -1,14 +1,23 @@
+#   ----- Import ----- #
 import cv2
 import numpy as np
+import time
+import serial
 
-# Open the default camera
+
+#   ----- Set up the serial connections with uno ----- #
+#arduino = serial.Serial('COM3', 9600) 
+#time.sleep(2) # give time for UNO to reset
+
+
+#   ----- Open the camera ----- #
 cap = cv2.VideoCapture(0)
 
-if not cap.isOpened():
+if not cap.isOpened(): #if cam isn't working 
     print("Error: Could not open camera.")
     exit()
 
-print("Press 'c' to capture and detect colors...")
+print("Press Enter to start the program")
 
 while True:
     ret, frame = cap.read()
@@ -18,14 +27,17 @@ while True:
 
     cv2.imshow("Live Camera Feed", frame)
 
-    # Press 'c' to capture and exit
-    if cv2.waitKey(1) & 0xFF == ord('c'):
+    # Press 'enter' to start the program
+    key = cv2.waitKey(1) & 0xFF
+    if key == 13:  # Enter key
+        print("Starting the program!")
         break
 
 cap.release()
-cv2.destroyAllWindows()
+cv2.destroyAllWindows() #end
 
-# Convert to HSV
+
+#   ----- Convert Bgr2hsv ----- #
 hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
 # Define color ranges in HSV
@@ -42,11 +54,13 @@ color_ranges = {
     ]
 }
 
-# Copy of frame to draw on
-result = frame.copy()
+#   ----- Draw the rectangle ----- #
+result = frame.copy() # copy the pervious frame
 
 # Dictionary to hold detected centers by color
-color_centers = {}
+color_centers = {
+#ex 'red': 120,
+} 
 
 for color_name, ranges in color_ranges.items():
     mask = None
@@ -69,41 +83,55 @@ for color_name, ranges in color_ranges.items():
             max_area = area
 
     if center_x is not None and center_y is not None:
-        # Save center x for angle assignment
-        color_centers[color_name] = center_x
+#   ----- store the variable in the color_ceter ----- #        
+        color_centers[color_name] = center_x 
 
-        # Draw rectangle and center point
+#   ----- Draw rectangle and center point ----- #    
         cv2.rectangle(result, (x, y), (x + w, y + h), (0, 255, 255), 2)
         cv2.circle(result, (center_x, center_y), 5, (0, 255, 0), -1)
 
-        # Label with color and center coordinates
+#   ----- Label ----- #   
         label = f"{color_name} ({center_x}, {center_y})"
         cv2.putText(result, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                     (0, 255, 255), 2)
 
         print(f"{color_name} center at: x={center_x}, y={center_y}")
 
-# Assign angles based on ascending center_x positions
+#   ----- Assign the angle ----- #   
 angles = [30, 45, 135]
 
-# Sort colors by their center x coordinate (lowest to greatest)
+#   ----- Arrange the color by x axis (item[1]) ----- #   
 sorted_colors = sorted(color_centers.items(), key=lambda item: item[1])
 
-# Assign angles
-color_angles = {}
+#   ----- Angle dataset ----- #   
+color_angles = {
+#ex    'Yellow': 10,
+}
+#store the variable into the Angle dataset
 for i, (color, _) in enumerate(sorted_colors):
     color_angles[color] = angles[i]
 
-# Retrieve angles for each color, default to None if not detected
+#store the Angle datasets as variable
 red_angle = color_angles.get('Red', None)
 green_angle = color_angles.get('Green', None)
 blue_angle = color_angles.get('Blue', None)
+#Serial with UNO
+#arduino.write(f"{red_angle}\n".encode())
+#arduino.write(f"{green_angle}\n".encode())
+#arduino.write(f"{blue_angle}\n".encode())
 
 print(f"Red angle: {red_angle}")
 print(f"Green angle: {green_angle}")
 print(f"Blue angle: {blue_angle}")
 
-# Show the final result image
-cv2.imshow("Detected Colors with Center Position and Angles", result)
-cv2.waitKey(0)
+#-----  Quit program ----#
+cv2.imshow("Result", result)
+print("Press 'q' to quit the program.")
+
+while True:
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('q'):
+        print("Quitting the program.")
+        break
+
 cv2.destroyAllWindows()
